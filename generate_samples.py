@@ -224,8 +224,7 @@ def read_context(tokenizer, args, output):
         context_length = 0
 
     # terminate_runs_tensor = torch.cuda.LongTensor([terminate_runs])
-    terminate_runs_tensor = torch.tensor([terminate_runs], device="hpu")
-    terminate_runs_tensor = terminate_runs_tensor.long()
+    terminate_runs_tensor = torch.LongTensor([terminate_runs]).to('hpu')
     torch.distributed.broadcast(terminate_runs_tensor, mpu.get_model_parallel_src_rank(),
                                 group=mpu.get_model_parallel_group())
     terminate_runs = terminate_runs_tensor[0].item()
@@ -234,20 +233,17 @@ def read_context(tokenizer, args, output):
         return terminate_runs, None, None, None
 
     # context_length_tensor = torch.cuda.LongTensor([context_length])
-    context_length_tensor = torch.tensor([context_length], device="hpu")
-    context_length_tensor = context_length_tensor.long()
+    context_length_tensor = torch.LongTensor([context_length]).to("hpu")
 
     torch.distributed.broadcast(context_length_tensor, mpu.get_model_parallel_src_rank(),
                                 group=mpu.get_model_parallel_group())
     context_length = context_length_tensor[0].item()
     if mpu.get_model_parallel_rank() == 0:
         # context_tokens_tensor = torch.cuda.LongTensor(context_tokens)
-        context_tokens_tensor = torch.tensor(context_tokens, device="hpu")
-        context_tokens_tensor = context_tokens_tensor.long()
+        context_tokens_tensor = torch.LongTensor(context_tokens).to("hpu")
     else:
         # context_tokens_tensor = torch.cuda.LongTensor([0] * context_length)
-        context_tokens_tensor = torch.tensor([0] * context_length, device="hpu")
-        context_tokens_tensor = context_tokens_tensor.long()
+        context_tokens_tensor = torch.LongTensor([0] * context_length).to("hpu")
     torch.distributed.broadcast(context_tokens_tensor, mpu.get_model_parallel_src_rank(),
                                 group=mpu.get_model_parallel_group())
     if mpu.get_model_parallel_rank() != 0:
