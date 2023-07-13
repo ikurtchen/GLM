@@ -1,6 +1,6 @@
-DATA_ROOT=/root/Source2/GLM-dataset/cnn-dailymail
-CHECKPOINT_PATH="/root/Source2/GLM-Models"
-SAVE_PATH=/root/data/finetune_checkpoints
+DATA_ROOT=/data/kurt/dataset/cnn_dm
+CHECKPOINT_PATH=/data/kurt/models/GLM/blocklm-2b-512/blocklm-2b-512_MP8
+SAVE_PATH=/data/kurt/ws/checkpoints
 DATESTR=$(date +"%m-%d-%H-%M")
 
 source $1    # Model
@@ -9,7 +9,7 @@ source $2    # Task
 NUM_WORKERS=1
 NUM_GPUS_PER_WORKER=8
 HOST_FILE_PATH="./hostfile"
-MP_SIZE=1
+MP_SIZE=8
 MASTER_PORT=$(shuf -n 1 -i 10000-65535)
 
 OPTIONS_NCCL="NCCL_DEBUG=info NCCL_IB_DISABLE=0 NCCL_NET_GDR_LEVEL=2"
