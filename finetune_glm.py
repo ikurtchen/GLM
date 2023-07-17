@@ -29,6 +29,7 @@ from pretrain_glm import set_random_seed
 from configure_data import make_data_loader
 
 import habana_frameworks.torch.core as htcore
+import habana_frameworks.torch.hpu as hthpu
 
 def process_batch(batch, args):
     """Process batch and produce inputs for the model."""
@@ -191,6 +192,21 @@ def _build_train_valid_dataloaders(train_dataset, valid_dataset, args):
     return train_dataloader, valid_dataloader
 
 
+def setup_profiler(wait, warmup, active, repeat, profile_mem):
+
+    schedule = torch.profiler.schedule(wait=wait, warmup=warmup, active=active, repeat=repeat)
+
+    activities = [torch.profiler.ProfilerActivity.CPU]
+    activities.append(torch.profiler.ProfilerActivity.HPU)
+
+    profiler = torch.profiler.profile(
+        schedule=schedule,
+        activities=activities,
+        on_trace_ready=torch.profiler.tensorboard_trace_handler('profile_logs'),
+        profile_memory=profile_mem)
+
+    return profiler
+
 def _train(model, optimizer, lr_scheduler, forward_step,
            train_dataloader, valid_dataloader, end_of_epoch_callback, args, timers, summary_writer=None):
     """Train the model."""
@@ -207,6 +223,11 @@ def _train(model, optimizer, lr_scheduler, forward_step,
     start_iteration = args.iteration % args.train_iters_per_epoch
     if not args.block_lm_ratio:
         valid_dataloader = valid_dataloader[0]
+
+    profiler = setup_profiler(0,1,1,0,False)
+    if profiler:
+        profiler.start()
+
     # For each remaining epoch
     timers('interval time').start()
     for epoch in range(start_epoch, args.epochs):
@@ -253,6 +274,14 @@ def _train(model, optimizer, lr_scheduler, forward_step,
                 evaluate_and_print_results(prefix, valid_dataloader, model, args, timers, step=args.iteration,
                                            verbose=False, forward_step_func=forward_step,
                                            summary_writer=summary_writer)
+
+            print("==> memory in use: {}".format(hthpu.memory_usage(hthpu.current_device())))
+
+            if profiler:
+                profiler.step()
+            if profiler and args.iteration > 3:
+                profiler.stop()
+                profiler = None
 
         # Checkpointing at the end of each epoch.
         if args.save and (epoch + 1) % args.save_epoch == 0:
