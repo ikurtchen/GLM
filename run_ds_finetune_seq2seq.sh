@@ -3,6 +3,7 @@
 set -x
 
 MODEL=model_blocklm_2B.sh
+#MODEL=model_blocklm_large.sh
 TASK=seq_cnndm_org.sh
 PROFILE=OFF
 
